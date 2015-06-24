@@ -1,0 +1,16 @@
+{
+  "api_rumi": {
+    "port": 5432,
+    "database": "rumi_datasets3",
+    "host": "localhost",
+    "username": "developer",
+    "password": "developer"
+  },
+  "datahub": {
+    "port": 5432,
+    "database": "datahub3",
+    "host": "localhost",
+    "username": "developer",
+    "password": "developer"
+  }
+}
