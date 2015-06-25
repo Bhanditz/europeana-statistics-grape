@@ -62,7 +62,7 @@ module CQ
   end
 
   def self.authenticate_token(account_id, project_id, user_id)
-    authenticate_token_query = "SELECT p.id FROM core_permissions p, core_team_projects t WHERE t.core_project_id = #{project_id} AND t.core_team_id = p.core_team_id AND p.status = 'Accepted' AND p.organisation_id = #{account_id} AND (p.organisation_id = #{user_id} or p.account_id = #{user_id}) LIMIT 1;"
+    authenticate_token_query = "SELECT p.id FROM core_permissions p WHERE p.core_project_id = #{project_id} AND p.status = 'Accepted' AND p.account_id = #{user_id} LIMIT 1;"
     begin
       token_validation_resp = self.execute_query(@@rumi_io_db_identifier, authenticate_token_query) 
       return token_validation_resp.values[0][0]
