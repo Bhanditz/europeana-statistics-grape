@@ -79,27 +79,6 @@ class Grid
     return column_names, column_types
   end
 
-  def self.clone(db_identifier ,table_name)
-    new_table_name = (0...32).map { (65 + rand(26)).chr }.join.downcase!
-    clone_query = "CREATE TABLE #{new_table_name} AS TABLE #{table_name};"
-
-    columns_position_query = "SELECT column_name, original_column_name from column_meta WHERE table_name='#{table_name}' order by pos;"
-    columns = CQ.execute_query(db_identifier, columns_position_query)
-    column_order_query = "INSERT INTO column_meta (table_name, column_name, original_column_name, pos) VALUES "
-    columns.each_with_index do |col, pos|
-      col["original_column_name"] = col["column_name"] if col["original_column_name"].empty?
-      column_order_query += " ('#{new_table_name}', '#{col["column_name"]}', '#{col["original_column_name"]}', #{pos}),"
-    end
-    column_order_query = column_order_query[0..-2] + ";"
-    clone_transaction = clone_query + " " + column_order_query
-    if CQ.execute_transaction(db_identifier, clone_transaction)
-      # To-Do -- auto detect dimensions and metrics.
-      return new_table_name
-    else
-      return false
-    end
-  end
-
   def self.get_sql_compatible_column_name(column_name)
     # http://www.postgresql.org/docs/current/static/sql-syntax-lexical.html#SQL-SYNTAX-IDENTIFIERS
     #ordinal range for allowed characters:
@@ -209,97 +188,6 @@ class Grid
     final_relations = final_relations.values
   end
 
-  def self.join(db_identifier, table_name, merge_config)
-    p merge_config
-    dataset_alias = merge_config["alias"]
-    datasets = dataset_alias.keys
-    datasets_table_names = {}
-    join_columns = []
-    all_columns_dump = Set.new
-    datasets.each do |dataset|
-      username, projectname, filename = dataset.split("/")
-      tbl_name = CQ.get_grid_table_name(username, projectname, filename)
-      col_names = Column.get_columns(db_identifier, tbl_name)
-      col_names.each do |col_name|
-        if all_columns_dump.add? col_name
-          join_columns << dataset_alias[dataset] + "." + col_name
-        end
-      end
-      datasets_table_names[dataset] = tbl_name
-    end
-    
-    conditions = merge_config["conditions"]
-    where_clause = ""
-    conditions.each do |cond|
-      cond = cond.split("|")
-      lhs_table = cond[0].tr!("()", "").split(',')
-      where_clause += " AND " if where_clause.length > 1
-      where_clause += " #{lhs_table[0]}.#{lhs_table[1]} "
-      where_clause += " = " if cond[1] == "EQUALS"
-      rhs_table = cond[2].tr!("()", "").split(',')
-      where_clause += " #{rhs_table[0]}.#{rhs_table[1]} "
-    end
-
-    tables_to_join = ""
-    datasets_table_names.each do |rumi_params, tbl_name|
-      tables_to_join += " #{tbl_name} AS #{dataset_alias[rumi_params]}, "
-    end
-    tables_to_join = tables_to_join[0..-3]
-    query = "SELECT #{join_columns.join(', ')} FROM #{tables_to_join} WHERE " + where_clause + ";"
-    query = "CREATE VIEW #{table_name} AS " + query
-    p query
-    CQ.execute_query(db_identifier, query)
-
-  end
-
-  def self.append_dataset(db_identifier, target_table_name, source_table_name)
-    # target_table = target_table + source_table
-    # insert into tyfiikmoyxxxziltuqmycanlobsbzkuz (_date, usd, gbp, euro, yen) select _date, _0, gbp, euro, yen from alnzjnfkxemjcqzwfmueikzlneprmndz;
-    target_table_columns = Column.get_column_types(db_identifier, target_table_name)
-    source_table_columns = Column.get_column_types(db_identifier, source_table_name)
-    if target_table_columns == source_table_columns #both have same columns
-      target_table_columns.delete('id')
-      target_table_columns = target_table_columns.keys.join(', ')
-      query = "INSERT into #{target_table_name} (#{target_table_columns}) SELECT #{target_table_columns} from #{source_table_name} ;";
-      p query
-      if !CQ.execute_query(db_identifier, query)
-        return {"error" => "Something went wrong while appending rows."}
-      end
-      return true
-    else
-      return self.generate_append_dataset_error_object(target_table_columns, source_table_columns)
-    end
-  end
-
-  def self.generate_append_dataset_error_object(target_table_columns, source_table_columns)
-    
-    columns_intersection =  target_table_columns.keys - source_table_columns.keys
-    
-    error = Hash.new
-    if target_table_columns.keys.length != source_table_columns.keys.length
-      error["error"] = "Number of columns mismatch."
-    elsif columns_intersection.empty?
-      error["error"] = "Column types didn't match."
-    else
-      error["error"] = "Column names didn't match."
-    end
-
-    #following column_names don't match
-    error["mismatch_column_name"] = columns_intersection
-      
-    #following columns datatypes do not match
-    error["mismatch_column_type"] = []
-    target_table_columns.each do |target_column_name, target_column_type|
-      if source_table_columns[target_column_name] != target_column_type
-        error["mismatch_column_type"] << target_column_name
-      end  
-    end
-
-    #following columns are extra in source table
-    error["extra_columns"] = source_table_columns.keys - target_table_columns.keys
-    
-    return error
-  end
   private
 
   def self.create_table(db_identifier, table_name, headers, provided_headers)
@@ -361,30 +249,6 @@ class Grid
       sql_results_array << row.values
     end
     sql_results_array
-  end
-
-  def self.get_data_distribution(db_identifier, table_name)
-    columns_query = "SELECT column_name from information_schema.columns WHERE table_name = '#{table_name}';"
-    columns_list = CQ.execute_query(db_identifier, columns_query)
-    columns = []
-    columns_list.each do |column|
-      columns << column["column_name"]
-    end
-    data_distributions = []
-    columns.each do |column_name|
-      if column_name == "id"
-        col_data_distribution = {}
-        data_distributions << col_data_distribution
-        next
-      end
-      data_distribution_query = "SELECT #{column_name}, count(*) AS dd FROM (SELECT DISTINCT #{column_name}, id FROM #{table_name}) as x1 GROUP BY #{column_name};"
-      data_dist = CQ.execute_query(db_identifier, data_distribution_query)
-      col_data_distribution = {}
-      data_dist.each do |col_dd|
-        col_data_distribution[col_dd["#{column_name}"]] = col_dd["dd"]
-      end
-      data_distributions << col_data_distribution
-    end
   end
 
   def self.calculate_size(db_identifier, table_name)
