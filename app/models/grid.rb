@@ -1,7 +1,6 @@
 require 'pg'
 require 'json'
 require 'set'
-require_relative "data_store"
 require_relative '../lib/common_queries'
 
 class Grid
@@ -41,42 +40,7 @@ class Grid
 
     Grid.create_table(db_identifier, table_name, grid_data[0], provided_headers) unless grid_data.length < 1 and table_name.is_empty?
     Grid.insert_values(db_identifier, table_name, grid_data)
-    # return false if not DataStore.set_table_name(username, projectname, filename, table_name)
     return true
-  end
-
-  def self.get_columns(db_identifier, table_name)
-    column_order_query = "SELECT column_name from column_meta WHERE table_name='#{table_name}' order by pos;"
-    column_order = CQ.execute_query(db_identifier ,column_order_query)
-    column_names = []
-    column_order.each do |x|
-      column_names << x["column_name"].strip
-    end
-
-    column_type_query = "SELECT column_name, data_type from information_schema.columns WHERE table_name = '#{table_name}';"
-    column_type = CQ.execute_query(db_identifier, column_type_query)
-    column_types = []
-    
-    column_type.each do |a|
-      a = a.values
-      col_name, col_type = a[0], a[1]
-      index = column_names.index(col_name)
-    
-      case col_type
-      when "character varying"
-        column_types[index] = "string"
-      when "integer"
-        column_types[index] = "integer"
-      when "double precision"
-        column_types[index] = "double"
-      when "boolean"
-        column_types[index] = "boolean"
-      when "date"
-        column_types[index] = "date"
-      end
-      
-    end
-    return column_names, column_types
   end
 
   def self.get_sql_compatible_column_name(column_name)
@@ -144,50 +108,6 @@ class Grid
   
   end
 
-  def self.analyse_datatypes(db_identifier, table_name)
-    columns_with_type = Column.get_column_types(db_identifier, table_name)
-    columns = columns_with_type.keys
-    columns.delete('id')
-    columns.each do |col_name|
-      dtd = Column.datatype_distribution(db_identifier, table_name, col_name)
-      col_type = Column.detect_type(dtd)
-      Column.change_type(db_identifier, table_name, col_name, col_type) if col_type and col_type != "string" and columns_with_type[col_name] != col_type
-      if ['lat', 'latitude', 'long', 'lng', 'longitude'].include? col_name.downcase
-        sub_type = Column.detect_lat_long_sub_type(db_identifier, table_name, col_name)
-        sub_type = 'longitude' if sub_type == 'latitude' and ['long', 'lng', 'longitude'].include? col_name.downcase
-        Column.change_sub_type(db_identifier, table_name, col_name, sub_type) if sub_type.length > 1
-      end
-    end
-    table_size = Grid.calculate_size(db_identifier, table_name)
-    DataStore.update_size("datahub", table_name, table_size)
-  end
-
-  def self.get_graph_traversal(db_identifier, table_name ,source_column, target_column, depth=1)
-    node_ids = Set.new
-    node_ids.add('214328887')
-    (0...depth).each do |i|
-      node_ids_list = "("
-      node_ids.each do |node|
-        node_ids_list += "#{node}, "
-      end
-      node_ids_list = node_ids_list[0..-3] +  ")"
-      q = "SELECT source, target FROM #{table_name} WHERE #{source_column} IN #{node_ids_list} OR #{target_column} IN #{node_ids_list} LIMIT 1000;"
-      more_node_ids = CQ.execute_query(db_identifier, q)
-      more_node_ids = more_node_ids.values
-      more_node_ids.each do |s, t|
-        node_ids.merge([s, t])
-      end
-    end
-    node_ids_list = "("
-    node_ids.each do |node|
-      node_ids_list += "#{node}, "
-    end
-    node_ids_list = node_ids_list[0..-3] +  ")"
-    q = "SELECT source, target FROM #{table_name} WHERE #{source_column} IN #{node_ids_list} OR #{target_column} IN #{node_ids_list} LIMIT 1000;"
-    final_relations = CQ.execute_query(db_identifier, q)
-    final_relations = final_relations.values
-  end
-
   private
 
   def self.create_table(db_identifier, table_name, headers, provided_headers)
@@ -236,25 +156,5 @@ class Grid
       insert_rows_query = insert_rows_query[0..-3] + ";"
     end
     CQ.execute_query(db_identifier, insert_rows_query)
-  end
-
-  def self.convert_sqlresults_hash_to_array(sql_results_hash)
-    sql_results_array = []
-    begin
-      sql_results_array << sql_results_hash[0].keys 
-    rescue IndexError => e
-      return []
-    end
-    sql_results_hash.each do |row|
-      sql_results_array << row.values
-    end
-    sql_results_array
-  end
-
-  def self.calculate_size(db_identifier, table_name)
-    table_size_query = "SELECT pg_size_pretty(pg_total_relation_size('#{table_name}'));"
-    table_size = CQ.execute_query(db_identifier, table_size_query)
-    table_size = table_size[0]["pg_size_pretty"]
-    table_size
   end
 end

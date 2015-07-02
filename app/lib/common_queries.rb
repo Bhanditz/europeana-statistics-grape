@@ -71,16 +71,6 @@ module CQ
     end 
   end
 
-  def self.get_vizs_pykquery_object(query_identifier)
-    get_vizs_pykquery_object = "select core_projects.slug AS project_slug, core_data_stores.slug AS datastore_slug, core_vizs.pykquery_object from core_vizs, core_projects, core_data_stores where core_vizs.datagram_identifier = '#{query_identifier}' AND core_vizs.core_project_id = core_projects.id AND core_vizs.core_data_store_id = core_data_stores.id LIMIT 1;"
-    begin
-      vizs_pykquery_object = self.execute_query(@@rumi_io_db_identifier, get_vizs_pykquery_object)
-      return vizs_pykquery_object.values
-    rescue 
-      return false
-    end
-  end
-
   def self.execute_query(db_identifier, query)
     if !@@db_pools.has_key? db_identifier
       @@db_pools[db_identifier] = ConnPool.get_db_connection_pool(db_identifier, 5)

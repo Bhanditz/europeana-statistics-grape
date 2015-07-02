@@ -3,11 +3,8 @@ require "grape"
 require "json"
 require 'logging'
 require_relative "lib/authentication"
-require_relative "models/cell"
 require_relative "models/grid"
 require_relative "models/row"
-require_relative "models/column"
-require_relative "models/filter"
 
 class Base < Grape::API
   
@@ -46,41 +43,8 @@ class Base < Grape::API
   resource :v1 do
     route_param :account_slug do
       route_param :project_slug do
-        route_param :datastore_slug do
+        route_param :datacast_slug do
           
-          # PYKQUERY -----------------------
-          
-          resource :filter do
-            post :show do
-              table_name = authenticate!(params[:account_slug], params[:project_slug], params[:datastore_slug], params[:token])
-              if not params[:format] 
-                params[:format] = params[:config][:dataformat]
-              end
-              params[:format] = 'array' if not params[:format]
-              if not ['json', 'csv', 'array'].include? params[:format]
-                time_to_run = Time.now - @girish_start
-                err = ["[rumi-api] filter.show > Unsupported Response Type.", 415]
-                logger.error "#{@girish_start}|#{env['REQUEST_METHOD']}|#{env['PATH_INFO']}|#{env['QUERY_STRING']}|#{time_to_run}|#{env['REMOTE_ADDR']}|#{env['HTTP_REFERER']}|#{err[0]}|#{err[1]}|#{params[:config]}"
-                error!({error: err[0]}, err[1])
-              end
-              data = Filter.get_data("api_rumi", table_name, params[:config], params[:format])
-              if data.class == Array or data.class == String
-                {"data" => data}
-              else
-                time_to_run = Time.now - @girish_start
-                if data.class == Hash and data.has_key? "error"
-                  err = ["[rumi-api] " + data["error"], 422]
-                else
-                  err = ["[rumi-api] filter.show > Query Failed.", 400]
-                end
-                  
-                logger.error "#{@girish_start}|#{env['REQUEST_METHOD']}|#{env['PATH_INFO']}|#{env['QUERY_STRING']}|#{time_to_run}|#{env['REMOTE_ADDR']}|#{env['HTTP_REFERER']}|#{err[0]}|#{err[1]}|#{params[:config]}"
-                error!({error: err[0]}, err[1])
-              end
-            end
-          end
-          
-          # PYKQUERY -----------------------
           # GRID -----------------------
           resource :grid do
             
@@ -90,14 +54,14 @@ class Base < Grape::API
             end
             
             post :create do
-              table_name = authenticate!(params[:account_slug], params[:project_slug], params[:datastore_slug], params[:token])
+              table_name = authenticate!(params[:account_slug], params[:project_slug], params[:datacast_id], params[:token])
               if !Grid.create("api_rumi", table_name, params[:data], params[:first_row_header])
                 error!({error: "[rumi-api] grid.create > Failed."}, 422)
               end
             end
-            
+    
             post :delete do
-              table_name = authenticate!(params[:account_slug], params[:project_slug], params[:datastore_slug], params[:token])
+              table_name = authenticate!(params[:account_slug], params[:project_slug], params[:datacast_id], params[:token])
               if !Grid.delete("api_rumi", table_name)
                 time_to_run = Time.now - @girish_start
                 err = ["[rumi-api] grid.delete > Failed.", 422]
@@ -105,24 +69,43 @@ class Base < Grape::API
                 error!({error: err[0]}, err[1])
               end
             end
-
-            get :columns do
+          end
+          # GRID -----------------------
+          # ROW -----------------------
+          resource :row do
+            
+            params do
+              requires :data, type: Array
+            end
+            
+            post :add do
               table_name = authenticate!(params[:account_slug], params[:project_slug], params[:datastore_slug], params[:token])
-              data = Grid.get_columns("api_rumi", table_name)
-              if data
-                {"data" => data}
-              else
+              grid_data = []
+              params[:data].each { |v| grid_data << v }
+              query_response = Row.add("api_rumi", table_name, grid_data)
+              if query_response.class == Hash and query_response.has_key?(:error_type) and query_response[:error_type] == "InvalidTextRepresentation"
                 time_to_run = Time.now - @girish_start
-                err = ["[rumi-api] grid.columns > Failed.", 422]
+                err = ["[rumi-api] row.add > Failed.", 422]
+                logger.error "#{@girish_start}|#{env['REQUEST_METHOD']}|#{env['PATH_INFO']}|#{env['QUERY_STRING']}|#{time_to_run}|#{env['REMOTE_ADDR']}|#{env['HTTP_REFERER']}|#{err[0]}|#{err[1]}|#{params[:config]}"
+                error!({error: err[0]}, err[1])
+              end
+              {"id" => query_response}
+            end
+            
+            params do
+              requires :data
+            end
+
+            post :batch_add do
+              table_name = authenticate!(params[:account_slug], params[:project_slug], params[:datastore_slug], params[:token])
+              if !Row.batch_add("api_rumi", table_name, params[:data])
+                time_to_run = Time.now - @girish_start
+                err = ["[rumi-api] row.batch_add > Failed.", 422]
                 logger.error "#{@girish_start}|#{env['REQUEST_METHOD']}|#{env['PATH_INFO']}|#{env['QUERY_STRING']}|#{time_to_run}|#{env['REMOTE_ADDR']}|#{env['HTTP_REFERER']}|#{err[0]}|#{err[1]}|#{params[:config]}"
                 error!({error: err[0]}, err[1])
               end
             end
-             
-          end
-          # GRID -----------------------
-
-          end
+          end  
         end
       end
     end
