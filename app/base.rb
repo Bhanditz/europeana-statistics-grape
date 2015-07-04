@@ -6,7 +6,7 @@ require_relative "lib/authentication"
 require_relative "models/grid"
 require_relative "models/row"
 require_relative "models/column"
-
+require_relative "models/datacast"
 class Base < Grape::API
   
   format :json
@@ -56,9 +56,6 @@ class Base < Grape::API
             
             post :create do
               core_db_connection_id, table_name = authenticate!(params[:account_slug], params[:project_slug], params[:datacast_slug], params[:token])
-              #Pass the core_db_connection as is, and then create a after the connection
-              puts params
-              puts "----------"
               if !Grid.create(core_db_connection_id, table_name, params[:data], params[:first_row_header])
                 error!({error: "[rumi-api] grid.create > Failed."}, 422)
               end
@@ -95,53 +92,18 @@ class Base < Grape::API
       end
     end
 
-    resource :data do
+    resource :datacast do
       route_param :identifier do
-
-        params do
-          requires :token, type: String
-          requires :account_slug, type: String
-        end
-
-        post :q do
-          vizs_object = CQ.get_vizs_pykquery_object(params[:identifier])
-          if !vizs_object
-            time_to_run = Time.now - @girish_start
-            err = ["[rumi-api] data.q > query identifier not found.", 404]
-            logger.error "#{@girish_start}|#{env['REQUEST_METHOD']}|#{env['PATH_INFO']}|#{env['QUERY_STRING']}|#{time_to_run}|#{env['REMOTE_ADDR']}|#{env['HTTP_REFERER']}|#{err[0]}|#{err[1]}|#{identifier}"
-            error!({error: err[0]}, err[1])
-          end
-          core_db_connection_id, table_name = authenticate!(params[:account_slug], vizs_object[0][0], vizs_object[0][1], params[:token])
-          pykquery_object = vizs_object[0][2]
-          pykquery_object = JSON.parse(pykquery_object)
-          if pykquery_object.has_key? "dataformat"
-            format = pykquery_object["dataformat"]
-            if not ['json', 'csv', 'array'].include? format
-              time_to_run = Time.now - @girish_start
-              err = ["[rumi-api] data.q > Unsupported Response Type.", 415]
-              logger.error "#{@girish_start}|#{env['REQUEST_METHOD']}|#{env['PATH_INFO']}|#{env['QUERY_STRING']}|#{time_to_run}|#{env['REMOTE_ADDR']}|#{env['HTTP_REFERER']}|#{err[0]}|#{err[1]}|#{pykquery_object}"
-              error!({error: err[0]}, err[1])
-            end
-          else
-            format = "csv"
-          end
-
-          data = Filter.get_data("api_rumi", table_name, pykquery_object, format)
-
-          if data.class == Array or data.class == String
-            {"data" => data}
+        get do
+          datacast_output = Datacast.get_datacast_output(params[:identifier])
+          if datacast_output
+            datacast_output
           else
             time_to_run = Time.now - @girish_start
-            if data.class == Hash and data.has_key? "error"
-              err = ["[rumi-api] " + data["error"], 422]
-            else
-              err = ["[rumi-api] data.q > Query Failed.", 400]
-            end
-
-            logger.error "#{@girish_start}|#{env['REQUEST_METHOD']}|#{env['PATH_INFO']}|#{env['QUERY_STRING']}|#{time_to_run}|#{env['REMOTE_ADDR']}|#{env['HTTP_REFERER']}|#{err[0]}|#{err[1]}|#{pykquery_object}"
+            err = ["[rumi-api] datacast.identifier > Not found.", 404]
+            logger.error "#{@girish_start}|#{env['REQUEST_METHOD']}|#{env['PATH_INFO']}|#{env['QUERY_STRING']}|#{time_to_run}|#{env['REMOTE_ADDR']}|#{env['HTTP_REFERER']}|#{err[0]}|#{err[1]}|#{params[:config]}"
             error!({error: err[0]}, err[1])
           end
-
         end
       end
     end
