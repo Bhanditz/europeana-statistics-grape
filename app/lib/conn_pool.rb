@@ -28,4 +28,13 @@ module ConnPool
 																																	) }
 		conn_pool
 	end
+
+	def self.get_pg_connection(config)
+		PG.connect(:dbname => config['db_name'], 
+								:user => config['username'],
+								:password => config['password'],
+								:port => config['port'],
+								:host => config['host'])
+	end
+
 end

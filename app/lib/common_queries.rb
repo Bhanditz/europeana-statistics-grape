@@ -36,6 +36,17 @@ module CQ
     end 
   end
 
+  def self.get_db_connection_id(project_id, filename)
+    db_connection_query = "Select core_db_connection_id,table_name from core_datacasts WHERE core_project_id=#{project_id} AND slug='#{filename}'"
+    begin
+      db_connection = self.execute_query(@@rumi_io_db_identifier, db_connection_query)
+      return db_connection.values[0][0], db_connection.values[0][1]
+    rescue => e
+      puts e
+      return false 
+    end 
+  end
+
   def self.get_grid_table_name(username, projectname, filename)
     account_id = self.get_account_id_from_slug(username)
     if account_id
@@ -117,6 +128,57 @@ module CQ
       @@db_pools[db_identifier].checkin 
     end
     is_success
+  end
+
+  def self.execute_custom_transaction(core_db_connection_id, query)
+    core_db_connection_query = "Select adapter, (properties->'host') as host,(properties->'port') as port,(properties->'db_name') as db_name, (properties->'username') as username,(properties->'password') as password   from core_db_connections where id=#{core_db_connection_id} LIMIT 1"
+    data = self.execute_query(@@rumi_io_db_identifier, core_db_connection_query)
+    data = data.first
+    begin
+      case data["adapter"]
+      when "postgresql"
+        conn = ConnPool.get_pg_connection(data)
+      else
+        raise "Not a valid adapter"
+      end
+      query = "BEGIN TRANSACTION; " + query
+      if conn.exec(query)
+        conn.exec("COMMIT;")
+        is_success = true
+      else
+        conn.exec("ROLLBACK;")
+        is_success = false
+      end
+    rescue Exception => e
+      puts e
+      puts "rollback"
+      conn.exec("ROLLBACK;")
+      is_success = false
+    ensure
+      conn.close if conn.present?
+    end
+    is_success
+  end
+
+  def self.execute_custom_query(core_db_connection_id, query)
+    core_db_connection_query = "Select adapter, (properties->'host') as host,(properties->'port') as port,(properties->'db_name') as db_name, (properties->'username') as username,(properties->'password') as password   from core_db_connections where id=#{core_db_connection_id} LIMIT 1"
+    data = self.execute_query(@@rumi_io_db_identifier, core_db_connection_query)
+    data = data.first
+    begin
+      case data["adapter"]
+      when "postgresql"
+        conn = ConnPool.get_pg_connection(data)
+      else
+        raise "Not a valid adapter"
+      end
+      data = conn.exec(query)
+    rescue => ee
+      error = {error_type: ee}
+      return error
+    ensure
+      conn.close if conn.present?
+    end
+    data
   end
 
 

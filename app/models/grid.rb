@@ -12,7 +12,7 @@ class Grid
   # some more additional
   @@reserved_keywords += ["alter", "drop", "copy", "delete", "insert", "id", "date"]
 
-	def self.create(db_identifier, table_name, grid_data, first_row_header=true)
+	def self.create(core_db_connection_id, table_name, grid_data, first_row_header=true)
    if not first_row_header
       headers = []
       grid_data[0].length.times { |i| headers << "column_#{i}" } 
@@ -38,8 +38,8 @@ class Grid
       end
     end
 
-    Grid.create_table(db_identifier, table_name, grid_data[0], provided_headers) unless grid_data.length < 1 and table_name.is_empty?
-    Grid.insert_values(db_identifier, table_name, grid_data)
+    Grid.create_table(core_db_connection_id, table_name, grid_data[0], provided_headers) unless grid_data.length < 1 and table_name.is_empty?
+    Grid.insert_values(core_db_connection_id, table_name, grid_data)
     return true
   end
 
@@ -82,51 +82,44 @@ class Grid
     column_name
   end
 
-  def self.delete(db_identifier, table_name)
+  def self.delete(core_db_connection_id, table_name)
     is_table_query = "SELECT count(*) FROM pg_tables where tablename='#{table_name}';"
-    is_table = CQ.execute_query(db_identifier, is_table_query)
+    is_table = CQ.execute_custom_query(core_db_connection_id, is_table_query)
     is_table = is_table.values
     is_table = is_table[0][0].to_i
     if is_table == 1
       drop_table_query = "DROP TABLE #{table_name};"
       p drop_table_query
-      CQ.execute_query(db_identifier, drop_table_query)
-      delete_columns_meta_query = "DELETE FROM column_meta WHERE table_name='#{table_name}';"
-      p delete_columns_meta_query
-      CQ.execute_transaction(db_identifier, delete_columns_meta_query)
+      CQ.execute_custom_transaction(core_db_connection_id, drop_table_query)
       return true;
     end
 
     is_view_query = "SELECT count(*) FROM pg_views where viewname='#{table_name}';"
-    is_view = CQ.execute_query(db_identifier, is_view_query)
+    is_view = CQ.execute_custom_query(core_db_connection_id, is_view_query)
     is_view = is_view.values
     is_view = is_view[0][0].to_i
     if is_view == 1
       drop_view_query = "DROP VIEW #{table_ename};"
-      CQ.execute_query(db_identifier, drop_view_query)
+      CQ.execute_custom_transaction(core_db_connection_id, drop_view_query)
     end
   
   end
 
   private
 
-  def self.create_table(db_identifier, table_name, headers, provided_headers)
+  def self.create_table(core_db_connection_id, table_name, headers, provided_headers)
 
     create_table_query = "CREATE TABLE " + table_name + "("
     create_table_query += " id SERIAL PRIMARY KEY,"
-    column_order_query = "INSERT into column_meta (table_name, column_name, original_column_name, pos) VALUES ('#{table_name}', 'id', 'id', 0)," 
     
     headers.each_with_index do |column_name, pos|     
       create_table_query += " #{column_name} character varying(255) DEFAULT NULL,"
-      column_order_query += " ('#{table_name}', '#{column_name}', '#{provided_headers[pos]}', #{pos + 1}),"
     end
     create_table_query = create_table_query[0..-2] + ");"
-    column_order_query = column_order_query[0..-2] + ";"
-    create_table_and_column_order_transaction = create_table_query + column_order_query
-    CQ.execute_transaction(db_identifier, create_table_and_column_order_transaction)
+    CQ.execute_custom_transaction(core_db_connection_id, create_table_query)
   end
 
-  def self.insert_values(db_identifier, table_name, grid_data)
+  def self.insert_values(core_db_connection_id, table_name, grid_data)
     insert_rows_query = "INSERT INTO " + table_name + "("
     headers = grid_data[0]
     headers.each do |column_name|
@@ -155,6 +148,6 @@ class Grid
     if insert_rows_query[-2] == ","
       insert_rows_query = insert_rows_query[0..-3] + ";"
     end
-    CQ.execute_query(db_identifier, insert_rows_query)
+    CQ.execute_custom_transaction(core_db_connection_id, insert_rows_query)
   end
 end
