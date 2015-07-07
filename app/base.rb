@@ -105,6 +105,18 @@ class Base < Grape::API
             error!({error: err[0]}, err[1])
           end
         end
+
+        get :column_meta do
+          column_meta = Datacast.get_column_meta(params[:identifier])
+          if column_meta
+            column_meta
+          else
+            time_to_run = Time.now - @girish_start
+            err = ["[rumi-api] datacast.identifier > Not found.", 404]
+            logger.error "#{@girish_start}|#{env['REQUEST_METHOD']}|#{env['PATH_INFO']}|#{env['QUERY_STRING']}|#{time_to_run}|#{env['REMOTE_ADDR']}|#{env['HTTP_REFERER']}|#{err[0]}|#{err[1]}|#{params[:config]}"
+            error!({error: err[0]}, err[1])
+          end
+        end
       end
     end
   end
