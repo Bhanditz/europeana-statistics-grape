@@ -15,7 +15,7 @@ class Datacast
       response = CQ.execute_query("datahub", core_db_output_query)
       if response.first.present?
         data = response.first
-        return data["output"]
+        return JSON.parse(data["output"])
       else
         return nil
       end
