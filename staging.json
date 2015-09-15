@@ -1,14 +1,14 @@
 {
   "api_rumi": {
     "port": 5432,
-    "database": "rumi_datasets",
+    "database": "datastory_datasets",
     "host": "localhost",
     "username": "rumidbuser",
     "password": "28bcda0b760a"
   },
   "datahub": {
     "port": 5432,
-    "database": "rumi",
+    "database": "datastory",
     "host": "localhost",
     "username": "rumidbuser",
     "password": "28bcda0b760a"
