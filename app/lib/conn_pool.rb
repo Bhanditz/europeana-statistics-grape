@@ -10,6 +10,8 @@ module ConnPool
 		db_config_file = './development.json'
 	when 'production'
 		db_config_file = './production.json'
+	when 'staging'
+		db_config_file = './staging.json'
 	end
 
 	@@available_dbs = JSON.parse(File.read(db_config_file))
