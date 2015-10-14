@@ -1,0 +1,7 @@
+logs.log
+.DS_Store
+.ruby-version
+environment.json
+development.json
+production.json
+staging.json
