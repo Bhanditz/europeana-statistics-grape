@@ -9,13 +9,6 @@
   * `development.json` which will have connection details for two databases
 
     {
-        "api_rumi": {
-            "port": ,
-            "database": "datastory_datasets",
-            "host": "",
-            "username": "",
-            "password": ""
-        },
         "datahub": {
             "port": ,
             "database": "datastory2",
