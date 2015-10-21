@@ -1,24 +1,10 @@
 require 'connection_pool'
+require 'uri'
 
 module ConnPool
-	
-	env = JSON.parse(File.read('./environment.json'))
-	env = env["current_environment"]
-	
-	case env
-	when 'development'
-		db_config_file = './development.json'
-	when 'production'
-		db_config_file = './production.json'
-	when 'staging'
-		db_config_file = './staging.json'
-	end
-
-	@@available_dbs = JSON.parse(File.read(db_config_file))
-	
-	def ConnPool.get_db_connection_pool(db_identifier, pool_size=3)
-		if @@available_dbs.has_key? db_identifier
-			config = @@available_dbs[db_identifier]
+	def self.get_db_connection_pool(db_identifier, pool_size=3)
+		if available_dbs.has_key? db_identifier
+			config = available_dbs[db_identifier]
 		else
 			return false
 		end	
@@ -39,4 +25,18 @@ module ConnPool
 								:host => config['host'])
 	end
 
+	def self.available_dbs
+		@@available_dbs ||= begin
+			db_uri = URI.parse(ENV['DATABASE_URL'])
+			{
+				'datahub' => {
+					'database' => db_uri.path.nil? ? nil : db_uri.path[1..-1],
+					'username' => db_uri.user,
+					'password' => db_uri.password,
+					'port' => db_uri.port,
+					'host' => db_uri.host
+				}
+			}
+		end
+	end
 end

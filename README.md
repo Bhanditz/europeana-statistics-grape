@@ -1,29 +1,19 @@
 #### Setting up your Environment
 
-* Install Ruby 2.2.0
+Install Ruby 2.2.2
 
 #### Getting Started
 
-* Add Two files
-  * `environment.json` which will have content `"current_environment" : "development"`
-  * `development.json` which will have connection details for two databases
+First, set the database details in the environment variable `DATABASE_URL`, e.g.
 
-    {
-        "datahub": {
-            "port": ,
-            "database": "datastory2",
-            "host": "",
-            "username": "",
-            "password": ""
-        }
-    }
-    
-  * The file name should be same as the environment you set. The possible values for environment are `development|production|staging`
+```
+DATABASE_URL="postgres://exampleuser:examplepass@babar.elephantsql.com:5432/exampledb"
+```
 
-Login to pgAdmin and manually create database with name: datastory_datasets and run pg_custom_functions.sql
-
-$ git clone git@github.com:europeana/europeana-statistics-grape.git
-
-$ cd europeana-statistics-grape
-
-$ rackup
+Then, execute:
+```
+git clone git@github.com:europeana/europeana-statistics-grape.git
+cd europeana-statistics-grape
+bundle install
+bundle exec puma -C config/puma.rg
+```
