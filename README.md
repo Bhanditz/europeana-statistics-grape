@@ -15,5 +15,5 @@ Then, execute:
 git clone git@github.com:europeana/europeana-statistics-grape.git
 cd europeana-statistics-grape
 bundle install
-bundle exec puma -C config/puma.rg
+bundle exec puma -C config/puma.rb
 ```
