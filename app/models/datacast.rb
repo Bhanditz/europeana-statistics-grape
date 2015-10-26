@@ -11,8 +11,9 @@ class Datacast
     if !datacast_identifier
       return nil
     else
-      core_db_output_query = "SELECT output from core_datacast_outputs where datacast_identifier='#{datacast_identifier}' LIMIT 1"
-      response = CQ.execute_query("datahub", core_db_output_query)
+      core_db_output_query = "SELECT output from core_datacast_outputs where datacast_identifier=$1 LIMIT 1"
+      params = [datacast_identifier]
+      response = CQ.execute_query("datahub", core_db_output_query,params)
       if response.first.present?
         data = response.first
         return JSON.parse(data["output"])
@@ -26,8 +27,9 @@ class Datacast
     if !datacast_identifier
       return nil
     else
-      core_db_column_meta_query = "SELECT column_properties from core_datacasts where identifier='#{datacast_identifier}' LIMIT 1"
-      response = CQ.execute_query("datahub", core_db_column_meta_query)
+      core_db_column_meta_query = "SELECT column_properties from core_datacasts where identifier=$1 LIMIT 1"
+      params = [datacast_identifier]
+      response = CQ.execute_query("datahub", core_db_column_meta_query,params)
       data = {}
       if response.first.present?
         col_properties = JSON.parse(response.first["column_properties"])

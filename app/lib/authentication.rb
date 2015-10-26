@@ -23,7 +23,6 @@ class Authentication
       return {error_msg: "[rumi-api] Unauthorized."}
     end
     core_db_connection_id, table_name = CQ.get_db_connection_id(project_id,filename)
-    puts core_db_connection_id, table_name
     if !core_db_connection_id and !table_name
       return {error_msg: "[rumi-api] Datacast not found"}
     end

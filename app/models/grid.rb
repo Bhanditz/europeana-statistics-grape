@@ -83,24 +83,24 @@ class Grid
   end
 
   def self.delete(core_db_connection_id, table_name)
-    is_table_query = "SELECT count(*) FROM pg_tables where tablename='#{table_name}';"
-    is_table = CQ.execute_custom_query(core_db_connection_id, is_table_query)
+    is_table_query = "SELECT count(*) FROM pg_tables where tablename=$1;"
+    is_table = CQ.execute_custom_query(core_db_connection_id, is_table_query, [table_name])
     is_table = is_table.values
     is_table = is_table[0][0].to_i
     if is_table == 1
-      drop_table_query = "DROP TABLE #{table_name};"
+      drop_table_query = "DROP TABLE $1;"
       p drop_table_query
-      CQ.execute_custom_transaction(core_db_connection_id, drop_table_query)
+      CQ.execute_custom_transaction(core_db_connection_id, drop_table_query, [table_name])
       return true;
     end
 
-    is_view_query = "SELECT count(*) FROM pg_views where viewname='#{table_name}';"
-    is_view = CQ.execute_custom_query(core_db_connection_id, is_view_query)
+    is_view_query = "SELECT count(*) FROM pg_views where viewname=$1;"
+    is_view = CQ.execute_custom_query(core_db_connection_id, is_view_query,[table_name])
     is_view = is_view.values
     is_view = is_view[0][0].to_i
     if is_view == 1
-      drop_view_query = "DROP VIEW #{table_ename};"
-      CQ.execute_custom_transaction(core_db_connection_id, drop_view_query)
+      drop_view_query = "DROP VIEW $1;"
+      CQ.execute_custom_transaction(core_db_connection_id, drop_view_query,[table_name])
     end
   
   end
@@ -109,19 +109,21 @@ class Grid
 
   def self.create_table(core_db_connection_id, table_name, headers, provided_headers)
 
-    create_table_query = "CREATE TABLE " + table_name + "("
+    create_table_query = "CREATE TABLE #{table_name} ("
     create_table_query += " id SERIAL PRIMARY KEY,"
-    
-    headers.each_with_index do |column_name, pos|     
+    headers.each_with_index do |column_name, pos|
       create_table_query += " #{column_name} character varying(255) DEFAULT NULL,"
     end
     create_table_query = create_table_query[0..-2] + ");"
-    CQ.execute_custom_transaction(core_db_connection_id, create_table_query)
+    CQ.execute_custom_transaction(core_db_connection_id, create_table_query, [])
   end
 
   def self.insert_values(core_db_connection_id, table_name, grid_data)
-    insert_rows_query = "INSERT INTO " + table_name + "("
+
+    insert_rows_query = "INSERT INTO #{table_name} ("
     headers = grid_data[0]
+    query_params = []
+    count = 1
     headers.each do |column_name|
       insert_rows_query += " #{column_name},"
     end
@@ -134,20 +136,21 @@ class Grid
         row.each do |value|
           value = value[0...254] if value and value.length > 255
           value.gsub! "'", "''" if value and value.include?"'"
+          insert_rows_query += " $#{count},"
           if not value or value.empty?
-            insert_rows_query += " NULL," 
+            query_params << "NULL"
           else
-            insert_rows_query += " '#{value}'," 
+            query_params << value
           end
+          count += 1
         end
         insert_rows_query = insert_rows_query[0..-2] + "),"
       end
-      
     end
     insert_rows_query = insert_rows_query[0..-2] + ";"
     if insert_rows_query[-2] == ","
       insert_rows_query = insert_rows_query[0..-3] + ";"
     end
-    CQ.execute_custom_transaction(core_db_connection_id, insert_rows_query)
+    CQ.execute_custom_transaction(core_db_connection_id, insert_rows_query, query_params)
   end
 end
