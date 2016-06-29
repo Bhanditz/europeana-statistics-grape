@@ -13,5 +13,3 @@ gem 'logging'
 gem 'puma'
 gem 'foreman'
 gem 'dotenv'
-#For Hosting, Once Richard Comes, we can revert it back to puma
-gem "unicorn"
