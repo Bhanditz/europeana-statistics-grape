@@ -1,15 +1,16 @@
 source 'https://rubygems.org'
 
-ruby '2.2.2'
-
-gem 'pg'
-gem 'grape'
-gem 'pg_search', git: "https://github.com/Casecommons/pg_search.git"
-gem 'rack'
-gem 'json'
 gem 'connection_pool'
-gem 'rack-cors'
+gem 'grape'
+gem 'json'
 gem 'logging'
+gem 'pg'
+gem 'pg_search', git: "https://github.com/Casecommons/pg_search.git"
 gem 'puma'
-gem 'foreman'
-gem 'dotenv'
+gem 'rack'
+gem 'rack-cors'
+
+group :development, :test do
+  gem 'dotenv'
+  gem 'foreman'
+end
