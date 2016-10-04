@@ -1,6 +1,6 @@
 #### Setting up your Environment
 
-Install Ruby 2.2.2
+Install Ruby 2.3.1
 
 #### Getting Started
 
