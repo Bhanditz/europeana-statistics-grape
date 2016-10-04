@@ -133,7 +133,7 @@ class Grid
       insert_rows_query += '('
       row.each do |value|
         value = value[0...254] if value && value.length > 255
-        value.gsub! "'", "''" if value && value.include?('")
+        value.gsub! "'", "''" if value && value.include?("'")
         insert_rows_query += " $#{count},"
         query_params << if (!value) || value.empty?
           "NULL"

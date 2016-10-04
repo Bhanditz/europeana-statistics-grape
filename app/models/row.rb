@@ -24,7 +24,7 @@ class Row
       insert_rows_query += ' ('
       row.each do |cell_value|
         cell_value = cell_value[0...254] if cell_value && cell_value.length > 254
-        cell_value.gsub! "'", "''" if cell_value && cell_value.include?('")
+        cell_value.gsub! "'", "''" if cell_value && cell_value.include?("'")
         insert_rows_query += " $#{count},"
         query_params << if (!cell_value) || cell_value.empty?
           " NULL,"
