@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 require_relative './app/base'
 require 'rack/cors'
-require 'dotenv'
+
+if ['development', 'test'].include?(ENV['RACK_ENV'])
+  require 'dotenv'
+  Dotenv.load
+end
 
 #	TO-DO for final production deploy
 # For now, let's set origins to *.
@@ -13,6 +17,6 @@ use Rack::Cors do
     resource '*', headers: :any, methods: :any
   end
 end
-Dotenv.load
+
 Rack::Utils.key_space_limit = 262_144
 run Base
